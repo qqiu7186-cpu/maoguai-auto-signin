@@ -25,6 +25,8 @@ set +a
 python3 main.py
 ```
 
+脚本默认将登录 Cookie 持久化到 `data/session.cookies`（该目录已被 Git 忽略），后续运行会优先复用有效会话；会话失效时才使用账号密码重新登录。可通过 `MAOGUAI_SESSION_FILE` 指定其他路径，并确保文件仅当前执行用户可读。
+
 ## Crontab 定时
 
 编辑当前用户的定时任务：

@@ -10,6 +10,7 @@ from .errors import ConfigurationError
 
 DEFAULT_BASE_URL = "https://2550505.com"
 DEFAULT_CLIENT_VERSION = "0c1c05"
+DEFAULT_SESSION_FILE = "data/session.cookies"
 
 
 @dataclass(frozen=True)
@@ -20,6 +21,7 @@ class Settings:
     password: str = field(default="", repr=False)
     base_url: str = DEFAULT_BASE_URL
     client_version: str = DEFAULT_CLIENT_VERSION
+    session_file: str = DEFAULT_SESSION_FILE
     timeout: float = 30.0
     retries: int = 2
 
@@ -33,6 +35,9 @@ class Settings:
             base_url=env.get("MAOGUAI_BASE_URL", DEFAULT_BASE_URL).strip(),
             client_version=env.get(
                 "MAOGUAI_CLIENT_VERSION", DEFAULT_CLIENT_VERSION
+            ).strip(),
+            session_file=env.get(
+                "MAOGUAI_SESSION_FILE", DEFAULT_SESSION_FILE
             ).strip(),
             timeout=_read_float(env, "MAOGUAI_TIMEOUT", 30.0),
             retries=_read_int(env, "MAOGUAI_RETRIES", 2),
@@ -55,6 +60,12 @@ class Settings:
             raise ConfigurationError("MAOGUAI_BASE_URL 不是有效的 HTTP(S) 地址")
         if not self.client_version:
             raise ConfigurationError("MAOGUAI_CLIENT_VERSION 不能为空")
+        if not self.session_file:
+            raise ConfigurationError("MAOGUAI_SESSION_FILE 不能为空")
+        if os.path.abspath(os.path.expanduser(self.session_file)) == os.path.abspath(
+            os.devnull
+        ):
+            raise ConfigurationError("MAOGUAI_SESSION_FILE 不能是系统空设备")
         if self.timeout <= 0:
             raise ConfigurationError("MAOGUAI_TIMEOUT 必须大于 0")
         if self.retries < 0:

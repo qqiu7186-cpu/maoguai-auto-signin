@@ -9,9 +9,13 @@
 ```text
 MAOGUAI_ACCOUNT=你的账号或UID
 MAOGUAI_PASSWORD=你的密码
+# 可选：持久化登录 Cookie 的路径（青龙容器内）
+MAOGUAI_SESSION_FILE=/ql/data/maoguai-session.cookies
 ```
 
 密码和 Token 不要写入脚本文件，也不要提交到 Git 仓库。
+
+建议将 `MAOGUAI_SESSION_FILE` 放在青龙持久化目录；脚本会优先加载有效 Cookie，失效后才重新登录。
 
 ## 添加任务
 

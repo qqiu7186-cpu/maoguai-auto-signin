@@ -5,6 +5,7 @@ import http.cookiejar
 import json
 import os
 import ssl
+import tempfile
 import uuid
 import urllib.error
 import urllib.request
@@ -20,9 +21,66 @@ class ApiClient:
 
     def __init__(self, settings: Settings, opener=None):
         self.settings = settings
-        self.cookies = http.cookiejar.CookieJar()
+        self.cookies = http.cookiejar.MozillaCookieJar()
         self._token = ""
         self.opener = opener or self._build_opener()
+
+    @property
+    def session_file(self):
+        """返回展开后的会话文件路径。"""
+        return os.path.abspath(os.path.expanduser(self.settings.session_file))
+
+    def load_session(self):
+        """从本地加载 Cookie；文件不存在或损坏时安全地从空会话开始。"""
+        filename = self.session_file
+        self._token = ""
+        self.cookies.clear()
+        try:
+            self.cookies.load(filename, ignore_discard=True, ignore_expires=False)
+        except (FileNotFoundError, http.cookiejar.LoadError, OSError, ValueError):
+            self.cookies.clear()
+            return False
+        return bool(self.token())
+
+    def save_session(self):
+        """以受限权限原子保存 Cookie，避免半写文件或泄露凭据。"""
+        filename = self.session_file
+        parent = os.path.dirname(filename) or "."
+        try:
+            os.makedirs(parent, mode=0o700, exist_ok=False)
+        except FileExistsError:
+            pass
+
+        temporary_name = None
+        try:
+            fd, temporary_name = tempfile.mkstemp(
+                prefix="." + os.path.basename(filename) + ".",
+                dir=parent,
+                text=True,
+            )
+            os.close(fd)
+            self.cookies.save(
+                temporary_name, ignore_discard=True, ignore_expires=True
+            )
+            os.chmod(temporary_name, 0o600)
+            os.replace(temporary_name, filename)
+            temporary_name = None
+        finally:
+            if temporary_name:
+                try:
+                    os.unlink(temporary_name)
+                except OSError:
+                    pass
+        try:
+            os.chmod(filename, 0o600)
+        except OSError:
+            pass
+
+    def clear_session(self):
+        """清空当前会话并覆盖本地会话文件。"""
+        self.cookies.clear()
+        self._token = ""
+        self.save_session()
 
     def _build_opener(self):
         ca_file = next(

@@ -1,6 +1,8 @@
 import hashlib
 import io
 import json
+import os
+import tempfile
 import unittest
 import urllib.error
 import urllib.request
@@ -100,6 +102,45 @@ class ClientTest(unittest.TestCase):
         with self.assertRaises(RequestError):
             client.request("/sign", method="POST")
         self.assertEqual(opener.attempts, 1)
+
+    def test_session_is_persisted_with_restricted_permissions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "data", "session.cookies")
+            settings = Settings(
+                account="user",
+                password="secret",
+                base_url="https://example.test",
+                client_version="test",
+                session_file=path,
+            )
+            client = ApiClient(settings, opener=object())
+            client.set_token("persisted")
+            client.save_session()
+
+            loaded = ApiClient(settings, opener=object())
+            self.assertTrue(loaded.load_session())
+            self.assertEqual(loaded.token(), "persisted")
+            self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+
+    def test_corrupt_session_falls_back_to_empty(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "session.cookies")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("not a cookie file")
+            settings = Settings(account="user", password="secret", session_file=path)
+            client = ApiClient(settings, opener=object())
+            self.assertFalse(client.load_session())
+            self.assertEqual(client.token(), "")
+
+    def test_session_save_does_not_change_existing_directory_permissions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            os.chmod(directory, 0o755)
+            path = os.path.join(directory, "session.cookies")
+            settings = Settings(account="user", password="secret", session_file=path)
+            client = ApiClient(settings, opener=object())
+            client.set_token("persisted")
+            client.save_session()
+            self.assertEqual(os.stat(directory).st_mode & 0o777, 0o755)
 
 
 if __name__ == "__main__":

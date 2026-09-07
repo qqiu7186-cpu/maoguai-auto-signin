@@ -13,6 +13,8 @@ MAOGUAI_PASSWORD
 
 两个值都应保存为 Repository secrets，不要写在 workflow 文件中。
 
+GitHub-hosted runner 每次运行都是临时环境，不建议在 Actions 中依赖本地 Cookie 文件；工作流会使用上述账号密码自动恢复登录。
+
 ## 手动执行
 
 打开仓库的 `Actions -> 毛怪俱乐部签到 -> Run workflow`，可以手动触发一次。工作流不会输出凭据值。

@@ -13,4 +13,5 @@ set -a
 . "$ENV_FILE"
 set +a
 
+cd "$SCRIPT_DIR"
 exec python3 "$SCRIPT_DIR/main.py"

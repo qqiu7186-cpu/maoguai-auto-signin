@@ -6,10 +6,13 @@ from maoguai.runner import RunStatus, SignInRunner
 
 
 class FakeClient:
-    def __init__(self, responses):
+    def __init__(self, responses, token=""):
         self.responses = iter(responses)
         self.calls = []
-        self._token = ""
+        self._token = token
+        self.loaded = 0
+        self.saved = 0
+        self.cleared = 0
 
     def request(self, path, method="GET", data=None):
         self.calls.append((path, method, data))
@@ -20,6 +23,16 @@ class FakeClient:
 
     def set_token(self, token):
         self._token = token
+
+    def load_session(self):
+        self.loaded += 1
+
+    def save_session(self):
+        self.saved += 1
+
+    def clear_session(self):
+        self.cleared += 1
+        self._token = ""
 
 
 class FailingClient:
@@ -55,6 +68,31 @@ class RunnerTest(unittest.TestCase):
         result = SignInRunner(self.settings, client).run()
         self.assertEqual(result.status, RunStatus.ALREADY_SIGNED)
         self.assertEqual(len(client.calls), 2)
+
+    def test_valid_persisted_session_skips_login(self):
+        client = FakeClient([{"code": 0, "signed": True}], token="cached")
+        result = SignInRunner(self.settings, client).run()
+        self.assertEqual(result.status, RunStatus.ALREADY_SIGNED)
+        self.assertEqual([call[0] for call in client.calls], ["/sign/signed"])
+        self.assertEqual(client.loaded, 1)
+
+    def test_expired_persisted_session_relogs_once(self):
+        client = FakeClient(
+            [
+                {"code": 401, "msg": "未登录"},
+                {"code": 0, "token": "refreshed"},
+                {"code": 0, "signed": True},
+            ],
+            token="expired",
+        )
+        result = SignInRunner(self.settings, client).run()
+        self.assertEqual(result.status, RunStatus.ALREADY_SIGNED)
+        self.assertEqual(
+            [call[0] for call in client.calls],
+            ["/sign/signed", "/auth/login", "/sign/signed"],
+        )
+        self.assertEqual(client.cleared, 1)
+        self.assertEqual(client._token, "refreshed")
 
     def test_rejects_successful_login_without_token(self):
         client = FakeClient([{"code": 0}, {"code": 0, "signed": False}])

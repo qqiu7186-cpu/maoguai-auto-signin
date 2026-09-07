@@ -23,6 +23,15 @@ docker build -t maoguai-sign:local .
 docker run --rm --env-file .env maoguai-sign:local
 ```
 
+如需跨容器运行复用登录 Cookie，请挂载持久化目录：
+
+```bash
+mkdir -p data
+chmod 700 data
+docker run --rm --env-file .env -v "$PWD/data:/data" \\
+  -e MAOGUAI_SESSION_FILE=/data/session.cookies maoguai-sign:local
+```
+
 ## Docker Compose
 
 ```bash
@@ -31,6 +40,8 @@ chmod 600 .env
 docker compose build
 docker compose run --rm maoguai-sign
 ```
+
+仓库提供的 Compose 配置已将 `./data` 挂载到容器 `/data`，因此会话文件默认可跨次运行保留。
 
 也可以使用仓库提供的包装脚本：
 

@@ -7,6 +7,7 @@
 ## 功能
 
 - 自动登录并使用会话 Cookie
+- 持久化 Cookie 优先复用登录，会话失效时自动回退密码登录
 - 查询当天签到状态，已签到时跳过重复操作
 - 未签到时自动执行签到并输出经验、贡献
 - 兼容登录接口通过 Cookie 或 JSON 返回 Token 的情况
@@ -99,6 +100,7 @@ docker compose run --rm maoguai-sign
 | `MAOGUAI_PASSWORD` | 是 | 无 | 账号密码 |
 | `MAOGUAI_BASE_URL` | 否 | `https://2550505.com` | 接口根地址 |
 | `MAOGUAI_CLIENT_VERSION` | 否 | `0c1c05` | 客户端版本标识 |
+| `MAOGUAI_SESSION_FILE` | 否 | `data/session.cookies` | 持久化登录 Cookie 文件路径 |
 | `MAOGUAI_TIMEOUT` | 否 | `30` | 单次请求超时时间，单位秒 |
 | `MAOGUAI_RETRIES` | 否 | `2` | 幂等请求的临时网络错误最大重试次数 |
 

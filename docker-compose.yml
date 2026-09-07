@@ -7,6 +7,9 @@ services:
       MAOGUAI_PASSWORD: ${MAOGUAI_PASSWORD:?Set MAOGUAI_PASSWORD in .env or the shell}
       MAOGUAI_BASE_URL: ${MAOGUAI_BASE_URL:-https://2550505.com}
       MAOGUAI_CLIENT_VERSION: ${MAOGUAI_CLIENT_VERSION:-0c1c05}
+      MAOGUAI_SESSION_FILE: ${MAOGUAI_SESSION_FILE:-/data/session.cookies}
       MAOGUAI_TIMEOUT: ${MAOGUAI_TIMEOUT:-30}
       MAOGUAI_RETRIES: ${MAOGUAI_RETRIES:-2}
+    volumes:
+      - ./data:/data
     restart: "no"
