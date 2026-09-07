@@ -1,0 +1,12 @@
+services:
+  maoguai-sign:
+    build: .
+    image: maoguai-sign:local
+    environment:
+      MAOGUAI_ACCOUNT: ${MAOGUAI_ACCOUNT:?Set MAOGUAI_ACCOUNT in .env or the shell}
+      MAOGUAI_PASSWORD: ${MAOGUAI_PASSWORD:?Set MAOGUAI_PASSWORD in .env or the shell}
+      MAOGUAI_BASE_URL: ${MAOGUAI_BASE_URL:-https://2550505.com}
+      MAOGUAI_CLIENT_VERSION: ${MAOGUAI_CLIENT_VERSION:-0c1c05}
+      MAOGUAI_TIMEOUT: ${MAOGUAI_TIMEOUT:-30}
+      MAOGUAI_RETRIES: ${MAOGUAI_RETRIES:-2}
+    restart: "no"

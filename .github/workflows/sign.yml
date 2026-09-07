@@ -1,0 +1,35 @@
+name: 毛怪俱乐部签到
+
+on:
+  schedule:
+    # 00:05 UTC = 08:05 Asia/Shanghai
+    - cron: "5 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maoguai-sign-in
+  cancel-in-progress: false
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MAOGUAI_ACCOUNT: ${{ secrets.MAOGUAI_ACCOUNT }}
+      MAOGUAI_PASSWORD: ${{ secrets.MAOGUAI_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check secrets
+        run: |
+          test -n "$MAOGUAI_ACCOUNT"
+          test -n "$MAOGUAI_PASSWORD"
+      - name: Run sign-in
+        run: python main.py
