@@ -6,7 +6,7 @@ from typing import Optional
 
 from .client import ApiClient
 from .config import Settings
-from .errors import RequestError, ResponseFormatError
+from .errors import RequestError, ResponseFormatError, SessionError
 from .models import ApiResponse, SignResult, SignStatus, extract_token
 
 
@@ -18,6 +18,7 @@ class RunStatus(Enum):
     SIGN_FAILED = "sign_failed"
     NETWORK_ERROR = "network_error"
     INVALID_RESPONSE = "invalid_response"
+    LOCAL_STATE_ERROR = "local_state_error"
 
 
 @dataclass(frozen=True)
@@ -80,9 +81,18 @@ class SignInRunner:
                     "✅ 今天已经签到，无需重复操作",
                 )
 
-            sign_response = ApiResponse.from_payload(
-                self.client.request("/sign", method="POST")
-            )
+            try:
+                sign_response = ApiResponse.from_payload(
+                    self.client.request("/sign", method="POST")
+                )
+            except RequestError:
+                if self._sign_in_was_confirmed():
+                    self._save_session()
+                    return RunResult(
+                        RunStatus.SUCCESS,
+                        "✅ 签到请求未返回，但签到状态已确认",
+                    )
+                raise
             if not sign_response.success:
                 return RunResult(
                     RunStatus.SIGN_FAILED,
@@ -100,6 +110,11 @@ class SignInRunner:
             return RunResult(RunStatus.NETWORK_ERROR, f"❌ {exc}")
         except ResponseFormatError as exc:
             return RunResult(RunStatus.INVALID_RESPONSE, f"❌ 响应格式错误：{exc}")
+        except (SessionError, OSError):
+            return RunResult(
+                RunStatus.LOCAL_STATE_ERROR,
+                "❌ 本地会话文件无法安全读写，请检查路径和文件权限",
+            )
 
     def _login(self):
         login = ApiResponse.from_payload(
@@ -131,6 +146,16 @@ class SignInRunner:
 
     def _status_response(self):
         return ApiResponse.from_payload(self.client.request("/sign/signed"))
+
+    def _sign_in_was_confirmed(self):
+        """在签到请求异常后只读确认，避免重复签到或误报失败。"""
+        try:
+            status_response = self._status_response()
+            return status_response.success and SignStatus.from_response(
+                status_response
+            ).signed
+        except (RequestError, ResponseFormatError):
+            return False
 
     def _load_session(self):
         method = getattr(self.client, "load_session", None)

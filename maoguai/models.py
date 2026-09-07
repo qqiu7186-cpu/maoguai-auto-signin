@@ -20,10 +20,7 @@ class ApiResponse:
             raise ResponseFormatError("接口返回不是 JSON 对象")
         if "code" not in payload:
             raise ResponseFormatError("接口返回缺少 code 字段")
-        try:
-            code = int(payload["code"])
-        except (TypeError, ValueError) as exc:
-            raise ResponseFormatError("接口返回的 code 字段无效") from exc
+        code = _parse_code(payload["code"])
         message = payload.get("msg", payload.get("message", ""))
         return cls(code=code, message="" if message is None else str(message), payload=payload)
 
@@ -77,3 +74,16 @@ def extract_token(payload: Dict[str, Any]) -> Optional[str]:
         if token is not None and str(token):
             return str(token)
     return None
+
+
+def _parse_code(value):
+    if isinstance(value, bool):
+        raise ResponseFormatError("接口返回的 code 字段无效")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError as exc:
+            raise ResponseFormatError("接口返回的 code 字段无效") from exc
+    raise ResponseFormatError("接口返回的 code 字段无效")

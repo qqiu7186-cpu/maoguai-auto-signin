@@ -6,10 +6,11 @@ import tempfile
 import unittest
 import urllib.error
 import urllib.request
+from unittest import mock
 
 from maoguai.client import ApiClient
 from maoguai.config import Settings
-from maoguai.errors import RequestError
+from maoguai.errors import RequestError, ResponseFormatError
 
 
 class FakeResponse:
@@ -22,8 +23,8 @@ class FakeResponse:
     def __exit__(self, exc_type, exc_value, traceback):
         return False
 
-    def read(self):
-        return self.body
+    def read(self, size=-1):
+        return self.body if size < 0 else self.body[:size]
 
 
 class FlakyOpener:
@@ -41,6 +42,31 @@ class FlakyOpener:
                 io.BytesIO(b"server detail"),
             )
         return FakeResponse(b'{"code":0}')
+
+
+class ThrottledOpener:
+    def __init__(self):
+        self.attempts = 0
+
+    def open(self, request, timeout):
+        self.attempts += 1
+        if self.attempts == 1:
+            raise urllib.error.HTTPError(
+                request.full_url,
+                429,
+                "throttled",
+                {"Retry-After": "4"},
+                io.BytesIO(b"too many requests"),
+            )
+        return FakeResponse(b'{"code":0}')
+
+
+class StaticOpener:
+    def __init__(self, body):
+        self.body = body
+
+    def open(self, request, timeout):
+        return FakeResponse(self.body)
 
 
 class ClientTest(unittest.TestCase):
@@ -94,7 +120,8 @@ class ClientTest(unittest.TestCase):
     def test_retries_get_but_not_sign_post(self):
         opener = FlakyOpener()
         client = ApiClient(self.client.settings, opener=opener)
-        self.assertEqual(client.request("/sign/signed"), {"code": 0})
+        with mock.patch("time.sleep"):
+            self.assertEqual(client.request("/sign/signed"), {"code": 0})
         self.assertEqual(opener.attempts, 2)
 
         opener = FlakyOpener()
@@ -102,6 +129,33 @@ class ClientTest(unittest.TestCase):
         with self.assertRaises(RequestError):
             client.request("/sign", method="POST")
         self.assertEqual(opener.attempts, 1)
+
+    def test_waits_before_retrying_an_idempotent_request(self):
+        delays = []
+        client = ApiClient(self.client.settings, opener=FlakyOpener())
+
+        with mock.patch("time.sleep", delays.append), mock.patch(
+            "random.uniform", return_value=0
+        ):
+            self.assertEqual(client.request("/sign/signed"), {"code": 0})
+        self.assertEqual(delays, [1])
+
+    def test_honors_retry_after_header_when_throttled(self):
+        delays = []
+        client = ApiClient(self.client.settings, opener=ThrottledOpener())
+
+        with mock.patch("time.sleep", delays.append):
+            self.assertEqual(client.request("/sign/signed"), {"code": 0})
+        self.assertEqual(delays, [4])
+
+    def test_rejects_response_larger_than_the_safety_limit(self):
+        client = ApiClient(
+            self.client.settings,
+            opener=StaticOpener(b"x" * (1024 * 1024 + 1)),
+        )
+
+        with self.assertRaisesRegex(ResponseFormatError, "响应体过大"):
+            client.request("/sign/signed")
 
     def test_session_is_persisted_with_restricted_permissions(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -141,6 +195,19 @@ class ClientTest(unittest.TestCase):
             client.set_token("persisted")
             client.save_session()
             self.assertEqual(os.stat(directory).st_mode & 0o777, 0o755)
+
+    def test_load_session_restricts_existing_file_permissions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "session.cookies")
+            settings = Settings(account="user", password="secret", session_file=path)
+            client = ApiClient(settings, opener=object())
+            client.set_token("persisted")
+            client.save_session()
+            os.chmod(path, 0o644)
+
+            loaded = ApiClient(settings, opener=object())
+            self.assertTrue(loaded.load_session())
+            self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
 
 
 if __name__ == "__main__":

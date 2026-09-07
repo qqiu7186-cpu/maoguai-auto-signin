@@ -82,6 +82,7 @@ py main.py
 ```bash
 cp .env.example .env
 chmod 600 .env
+printf 'MAOGUAI_UID=%s\nMAOGUAI_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
 docker compose build
 docker compose run --rm maoguai-sign
 ```
@@ -100,11 +101,12 @@ docker compose run --rm maoguai-sign
 | --- | --- | --- | --- |
 | `MAOGUAI_ACCOUNT` | 是 | 无 | 账号或 UID |
 | `MAOGUAI_PASSWORD` | 是 | 无 | 账号密码 |
-| `MAOGUAI_BASE_URL` | 否 | `https://2550505.com` | 接口根地址 |
+| `MAOGUAI_BASE_URL` | 否 | `https://2550505.com` | HTTPS 接口根地址；默认只允许目标站点 |
+| `MAOGUAI_ALLOW_CUSTOM_BASE_URL` | 否 | `false` | 仅在可信 HTTPS 测试环境中设为 `true` |
 | `MAOGUAI_CLIENT_VERSION` | 否 | `0c1c05` | 客户端版本标识 |
 | `MAOGUAI_SESSION_FILE` | 否 | `data/session.cookies` | 持久化登录 Cookie 文件路径 |
 | `MAOGUAI_TIMEOUT` | 否 | `30` | 单次请求超时时间，单位秒 |
-| `MAOGUAI_RETRIES` | 否 | `2` | 幂等请求的临时网络错误最大重试次数 |
+| `MAOGUAI_RETRIES` | 否 | `2` | 幂等请求重试次数，范围 `0` 到 `5`；会退避等待并遵循 `Retry-After` |
 
 ## 退出码
 
@@ -144,7 +146,7 @@ python3 -m unittest discover -v
 - **提示缺少环境变量**：确认变量名称完全是 `MAOGUAI_ACCOUNT`、`MAOGUAI_PASSWORD`，并检查任务运行环境是否能读取到它们。
 - **登录成功但没有 Token**：脚本会拒绝继续签到，避免在未认证状态下误调用接口；请检查接口返回、Cookie 保存和网络环境。
 - **接口返回格式错误**：通常表示目标站点接口发生变化，需要根据实际响应更新 `maoguai/models.py`。
-- **频繁网络失败**：可适当增加 `MAOGUAI_TIMEOUT` 或 `MAOGUAI_RETRIES`，但不要设置过大的重试次数。
+- **频繁网络失败**：可适当增加 `MAOGUAI_TIMEOUT`，或将 `MAOGUAI_RETRIES` 设为不超过 `5` 的值；重试会退避等待并遵循服务端的 `Retry-After`。
 
 ## 许可证
 

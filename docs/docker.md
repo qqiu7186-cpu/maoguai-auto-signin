@@ -28,15 +28,18 @@ docker run --rm --env-file .env maoguai-sign:local
 ```bash
 mkdir -p data
 chmod 700 data
-docker run --rm --env-file .env -v "$PWD/data:/data" \\
+docker run --rm --user "$(id -u):$(id -g)" --env-file .env -v "$PWD/data:/data" \\
   -e MAOGUAI_SESSION_FILE=/data/session.cookies maoguai-sign:local
 ```
+
+镜像默认以无特权用户运行。上面的 `--user` 让挂载目录由当前宿主机用户写入，不会产生 root 所有的 Cookie 文件。
 
 ## Docker Compose
 
 ```bash
 cp .env.example .env
 chmod 600 .env
+printf 'MAOGUAI_UID=%s\nMAOGUAI_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
 docker compose build
 docker compose run --rm maoguai-sign
 ```

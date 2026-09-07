@@ -16,7 +16,10 @@ class FakeClient:
 
     def request(self, path, method="GET", data=None):
         self.calls.append((path, method, data))
-        return next(self.responses)
+        response = next(self.responses)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
     def token(self):
         return self._token
@@ -38,6 +41,11 @@ class FakeClient:
 class FailingClient:
     def request(self, path, method="GET", data=None):
         raise RequestError("HTTP 请求失败（状态码 500）", detail='{"token":"secret"}')
+
+
+class SessionFailingClient:
+    def load_session(self):
+        raise OSError("permission denied")
 
 
 class RunnerTest(unittest.TestCase):
@@ -104,6 +112,39 @@ class RunnerTest(unittest.TestCase):
         result = SignInRunner(self.settings, FailingClient()).run()
         self.assertEqual(result.status, RunStatus.NETWORK_ERROR)
         self.assertNotIn("secret", result.message)
+
+    def test_confirms_sign_in_after_ambiguous_request_error(self):
+        client = FakeClient(
+            [
+                {"code": 0, "token": "token"},
+                {"code": 0, "signed": False},
+                RequestError("网络请求失败"),
+                {"code": 0, "signed": True},
+            ]
+        )
+
+        result = SignInRunner(self.settings, client).run()
+
+        self.assertEqual(result.status, RunStatus.SUCCESS)
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("状态已确认", result.message)
+        self.assertEqual(
+            [call[0] for call in client.calls],
+            ["/auth/login", "/sign/signed", "/sign", "/sign/signed"],
+        )
+
+    def test_returns_local_state_error_when_session_access_fails(self):
+        try:
+            result = SignInRunner(self.settings, SessionFailingClient()).run()
+        except OSError:
+            status = "unhandled"
+            exit_code = None
+        else:
+            status = result.status.value
+            exit_code = result.exit_code
+
+        self.assertEqual(status, "local_state_error")
+        self.assertEqual(exit_code, 1)
 
 
 if __name__ == "__main__":

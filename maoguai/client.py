@@ -3,17 +3,26 @@
 import hashlib
 import http.cookiejar
 import json
+import math
 import os
+import random
 import ssl
 import tempfile
+import time
 import uuid
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Optional
 from urllib.parse import urlparse
 
 from .config import Settings
-from .errors import RequestError, ResponseFormatError
+from .errors import RequestError, ResponseFormatError, SessionError
+
+
+MAX_RETRY_DELAY_SECONDS = 60.0
+MAX_RESPONSE_BYTES = 1024 * 1024
 
 
 class ApiClient:
@@ -36,23 +45,29 @@ class ApiClient:
         self._token = ""
         self.cookies.clear()
         try:
+            _restrict_session_file_permissions(filename)
             self.cookies.load(filename, ignore_discard=True, ignore_expires=False)
-        except (FileNotFoundError, http.cookiejar.LoadError, OSError, ValueError):
+        except FileNotFoundError:
             self.cookies.clear()
             return False
+        except (http.cookiejar.LoadError, ValueError):
+            self.cookies.clear()
+            return False
+        except OSError as exc:
+            self.cookies.clear()
+            raise SessionError("无法安全读取会话文件") from exc
         return bool(self.token())
 
     def save_session(self):
         """以受限权限原子保存 Cookie，避免半写文件或泄露凭据。"""
         filename = self.session_file
         parent = os.path.dirname(filename) or "."
-        try:
-            os.makedirs(parent, mode=0o700, exist_ok=False)
-        except FileExistsError:
-            pass
-
         temporary_name = None
         try:
+            try:
+                os.makedirs(parent, mode=0o700, exist_ok=False)
+            except FileExistsError:
+                pass
             fd, temporary_name = tempfile.mkstemp(
                 prefix="." + os.path.basename(filename) + ".",
                 dir=parent,
@@ -65,16 +80,15 @@ class ApiClient:
             os.chmod(temporary_name, 0o600)
             os.replace(temporary_name, filename)
             temporary_name = None
+            os.chmod(filename, 0o600)
+        except OSError as exc:
+            raise SessionError("无法安全保存会话文件") from exc
         finally:
             if temporary_name:
                 try:
                     os.unlink(temporary_name)
                 except OSError:
                     pass
-        try:
-            os.chmod(filename, 0o600)
-        except OSError:
-            pass
 
     def clear_session(self):
         """清空当前会话并覆盖本地会话文件。"""
@@ -173,7 +187,7 @@ class ApiClient:
             request = self._build_request(path, method, data)
             try:
                 with self.opener.open(request, timeout=self.settings.timeout) as response:
-                    raw = response.read().decode("utf-8", errors="replace")
+                    raw = _read_response(response).decode("utf-8", errors="replace")
                 try:
                     payload = json.loads(raw)
                 except json.JSONDecodeError as exc:
@@ -193,9 +207,11 @@ class ApiClient:
                         status_code=exc.code,
                         detail=detail,
                     ) from exc
+                time.sleep(_retry_delay(exc, attempt))
             except (urllib.error.URLError, TimeoutError, OSError) as exc:
                 if not retryable_method or attempt >= self.settings.retries:
                     raise RequestError("网络请求失败", detail=str(exc)) from exc
+                time.sleep(_retry_delay(None, attempt))
 
         raise RequestError("网络请求失败")
 
@@ -204,8 +220,50 @@ def _retryable_status(status_code):
     return status_code == 429 or status_code >= 500
 
 
+def _restrict_session_file_permissions(filename):
+    mode = os.stat(filename).st_mode & 0o777
+    if mode & 0o077:
+        os.chmod(filename, 0o600)
+
+
+def _read_response(response):
+    body = response.read(MAX_RESPONSE_BYTES + 1)
+    if len(body) > MAX_RESPONSE_BYTES:
+        raise ResponseFormatError("接口响应体过大")
+    return body
+
+
+def _retry_delay(error, attempt):
+    retry_after = _retry_after_delay(error)
+    if retry_after is not None:
+        return min(retry_after, MAX_RETRY_DELAY_SECONDS)
+    return min(2**attempt + random.uniform(0, 1), MAX_RETRY_DELAY_SECONDS)
+
+
+def _retry_after_delay(error):
+    if error is None:
+        return None
+    headers = getattr(error, "headers", None)
+    value = headers.get("Retry-After") if headers else None
+    if not value:
+        return None
+    try:
+        seconds = float(value)
+    except (TypeError, ValueError):
+        try:
+            retry_at = parsedate_to_datetime(value)
+        except (TypeError, ValueError, IndexError):
+            return None
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=timezone.utc)
+        seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+    if not math.isfinite(seconds) or seconds < 0:
+        return None
+    return seconds
+
+
 def _read_error_detail(error):
     try:
-        return error.read().decode("utf-8", errors="replace")[:200]
+        return error.read(201).decode("utf-8", errors="replace")[:200]
     except (AttributeError, UnicodeError):
         return ""

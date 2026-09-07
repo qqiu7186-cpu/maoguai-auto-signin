@@ -82,6 +82,7 @@ See the [QingLong deployment guide](docs/qinglong.md) for details.
 ```bash
 cp .env.example .env
 chmod 600 .env
+printf 'MAOGUAI_UID=%s\nMAOGUAI_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
 docker compose build
 docker compose run --rm maoguai-sign
 ```
@@ -100,11 +101,12 @@ See the [GitHub Actions deployment guide](docs/github-actions.md) for details.
 | --- | --- | --- | --- |
 | `MAOGUAI_ACCOUNT` | Yes | None | Account or UID |
 | `MAOGUAI_PASSWORD` | Yes | None | Account password |
-| `MAOGUAI_BASE_URL` | No | `https://2550505.com` | API base URL |
+| `MAOGUAI_BASE_URL` | No | `https://2550505.com` | HTTPS API root; the target host is required by default |
+| `MAOGUAI_ALLOW_CUSTOM_BASE_URL` | No | `false` | Set to `true` only for a trusted HTTPS test endpoint |
 | `MAOGUAI_CLIENT_VERSION` | No | `0c1c05` | Client-version identifier |
 | `MAOGUAI_SESSION_FILE` | No | `data/session.cookies` | Path to the persisted login-cookie file |
 | `MAOGUAI_TIMEOUT` | No | `30` | Timeout for each request, in seconds |
-| `MAOGUAI_RETRIES` | No | `2` | Maximum temporary-network-error retries for idempotent requests |
+| `MAOGUAI_RETRIES` | No | `2` | Idempotent-request retries, from `0` to `5`; waits with backoff and honors `Retry-After` |
 
 ## Exit Codes
 
@@ -144,7 +146,7 @@ Tests use mock clients and locally constructed responses. They do not log in, ch
 - **Missing environment variables**: Ensure the names are exactly `MAOGUAI_ACCOUNT` and `MAOGUAI_PASSWORD`, and verify that the task environment can read them.
 - **Login succeeds but no token is available**: The script refuses to continue, preventing calls in an unauthenticated state. Check the API response, saved cookies, and network environment.
 - **Invalid API response format**: The target site's API may have changed. Update `maoguai/models.py` for the actual response.
-- **Frequent network failures**: You can increase `MAOGUAI_TIMEOUT` or `MAOGUAI_RETRIES`, but avoid an excessively large retry count.
+- **Frequent network failures**: You can increase `MAOGUAI_TIMEOUT` or set `MAOGUAI_RETRIES` up to `5`. Retries wait with backoff and honor the server's `Retry-After` response.
 
 ## License
 

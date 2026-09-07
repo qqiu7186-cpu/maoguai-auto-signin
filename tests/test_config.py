@@ -45,6 +45,51 @@ class SettingsTest(unittest.TestCase):
                 }
             )
 
+    def test_non_finite_timeout_is_rejected(self):
+        for value in ("nan", "inf"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ConfigurationError, "MAOGUAI_TIMEOUT"):
+                    Settings.from_env(
+                        {
+                            "MAOGUAI_ACCOUNT": "u",
+                            "MAOGUAI_PASSWORD": "p",
+                            "MAOGUAI_TIMEOUT": value,
+                        }
+                    )
+
+    def test_retry_count_has_a_safe_upper_bound(self):
+        with self.assertRaisesRegex(ConfigurationError, "MAOGUAI_RETRIES"):
+            Settings.from_env(
+                {
+                    "MAOGUAI_ACCOUNT": "u",
+                    "MAOGUAI_PASSWORD": "p",
+                    "MAOGUAI_RETRIES": "6",
+                }
+            )
+
+    def test_custom_base_url_requires_explicit_opt_in(self):
+        env = {
+            "MAOGUAI_ACCOUNT": "u",
+            "MAOGUAI_PASSWORD": "p",
+            "MAOGUAI_BASE_URL": "https://example.test",
+        }
+        with self.assertRaisesRegex(ConfigurationError, "MAOGUAI_BASE_URL"):
+            Settings.from_env(env)
+
+        env["MAOGUAI_ALLOW_CUSTOM_BASE_URL"] = "true"
+        self.assertEqual(Settings.from_env(env).base_url, "https://example.test")
+
+    def test_insecure_base_url_is_rejected_even_with_opt_in(self):
+        with self.assertRaisesRegex(ConfigurationError, "HTTPS"):
+            Settings.from_env(
+                {
+                    "MAOGUAI_ACCOUNT": "u",
+                    "MAOGUAI_PASSWORD": "p",
+                    "MAOGUAI_BASE_URL": "http://example.test",
+                    "MAOGUAI_ALLOW_CUSTOM_BASE_URL": "true",
+                }
+            )
+
     def test_null_device_is_rejected_as_session_file(self):
         with self.assertRaisesRegex(ConfigurationError, "空设备"):
             Settings.from_env(

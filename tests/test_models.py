@@ -14,6 +14,10 @@ class ModelsTest(unittest.TestCase):
         with self.assertRaises(ResponseFormatError):
             ApiResponse.from_payload({"msg": "ok"})
 
+    def test_rejects_boolean_code(self):
+        with self.assertRaises(ResponseFormatError):
+            ApiResponse.from_payload({"code": False})
+
     def test_requires_boolean_signed_value(self):
         response = ApiResponse.from_payload({"code": 0, "signed": "false"})
         with self.assertRaises(ResponseFormatError):

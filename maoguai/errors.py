@@ -18,5 +18,9 @@ class RequestError(MaoguaiError):
         self.detail = detail
 
 
+class SessionError(MaoguaiError):
+    """本地会话文件无法安全读写。"""
+
+
 class ResponseFormatError(MaoguaiError):
     """接口返回的数据不是预期结构。"""
