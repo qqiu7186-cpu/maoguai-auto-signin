@@ -39,12 +39,20 @@ docker run --rm --user "$(id -u):$(id -g)" --env-file .env -v "$PWD/data:/data" 
 ```bash
 cp .env.example .env
 chmod 600 .env
+mkdir -p data
+chmod 700 data
 printf 'MAOGUAI_UID=%s\nMAOGUAI_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
 docker compose build
 docker compose run --rm maoguai-sign
 ```
 
 仓库提供的 Compose 配置已将 `./data` 挂载到容器 `/data`，因此会话文件默认可跨次运行保留。
+它要求先创建 `data` 目录，避免 Docker 自动创建 root 所有的目录。若此前由 root 创建过该目录，请先执行：
+
+```bash
+sudo chown -R "$(id -u):$(id -g)" data
+chmod 700 data
+```
 
 也可以使用仓库提供的包装脚本：
 

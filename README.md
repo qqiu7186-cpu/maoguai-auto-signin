@@ -82,6 +82,8 @@ See the [QingLong deployment guide](docs/qinglong.md) for details.
 ```bash
 cp .env.example .env
 chmod 600 .env
+mkdir -p data
+chmod 700 data
 printf 'MAOGUAI_UID=%s\nMAOGUAI_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
 docker compose build
 docker compose run --rm maoguai-sign

@@ -90,6 +90,16 @@ class SettingsTest(unittest.TestCase):
                 }
             )
 
+    def test_malformed_base_url_is_reported_as_configuration_error(self):
+        with self.assertRaisesRegex(ConfigurationError, "MAOGUAI_BASE_URL"):
+            Settings.from_env(
+                {
+                    "MAOGUAI_ACCOUNT": "u",
+                    "MAOGUAI_PASSWORD": "p",
+                    "MAOGUAI_BASE_URL": "https://[",
+                }
+            )
+
     def test_null_device_is_rejected_as_session_file(self):
         with self.assertRaisesRegex(ConfigurationError, "空设备"):
             Settings.from_env(

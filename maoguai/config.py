@@ -62,11 +62,11 @@ class Settings:
         if missing:
             raise ConfigurationError("请先在青龙添加 " + " 和 ".join(missing))
 
-        parsed = urlparse(self.base_url)
         try:
+            parsed = urlparse(self.base_url)
             parsed.port
         except ValueError as exc:
-            raise ConfigurationError("MAOGUAI_BASE_URL 端口无效") from exc
+            raise ConfigurationError("MAOGUAI_BASE_URL 不是有效的地址") from exc
         if (
             parsed.scheme != "https"
             or not parsed.hostname

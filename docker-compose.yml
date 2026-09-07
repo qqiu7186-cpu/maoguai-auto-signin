@@ -13,5 +13,9 @@ services:
       MAOGUAI_TIMEOUT: ${MAOGUAI_TIMEOUT:-30}
       MAOGUAI_RETRIES: ${MAOGUAI_RETRIES:-2}
     volumes:
-      - ./data:/data
+      - type: bind
+        source: ./data
+        target: /data
+        bind:
+          create_host_path: false
     restart: "no"

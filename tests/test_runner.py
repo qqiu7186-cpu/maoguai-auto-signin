@@ -133,6 +133,24 @@ class RunnerTest(unittest.TestCase):
             ["/auth/login", "/sign/signed", "/sign", "/sign/signed"],
         )
 
+    def test_confirms_sign_in_after_malformed_sign_response(self):
+        client = FakeClient(
+            [
+                {"code": 0, "token": "token"},
+                {"code": 0, "signed": False},
+                {},
+                {"code": 0, "signed": True},
+            ]
+        )
+
+        result = SignInRunner(self.settings, client).run()
+
+        self.assertEqual(result.status, RunStatus.SUCCESS)
+        self.assertEqual(
+            [call[0] for call in client.calls],
+            ["/auth/login", "/sign/signed", "/sign", "/sign/signed"],
+        )
+
     def test_returns_local_state_error_when_session_access_fails(self):
         try:
             result = SignInRunner(self.settings, SessionFailingClient()).run()

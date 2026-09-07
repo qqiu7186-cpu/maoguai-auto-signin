@@ -1,12 +1,14 @@
 """2550505.com HTTP 客户端和请求签名。"""
 
 import hashlib
+import http.client
 import http.cookiejar
 import json
 import math
 import os
 import random
 import ssl
+import stat
 import tempfile
 import time
 import uuid
@@ -208,7 +210,12 @@ class ApiClient:
                         detail=detail,
                     ) from exc
                 time.sleep(_retry_delay(exc, attempt))
-            except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            except (
+                urllib.error.URLError,
+                TimeoutError,
+                OSError,
+                http.client.HTTPException,
+            ) as exc:
                 if not retryable_method or attempt >= self.settings.retries:
                     raise RequestError("网络请求失败", detail=str(exc)) from exc
                 time.sleep(_retry_delay(None, attempt))
@@ -221,7 +228,10 @@ def _retryable_status(status_code):
 
 
 def _restrict_session_file_permissions(filename):
-    mode = os.stat(filename).st_mode & 0o777
+    file_stat = os.lstat(filename)
+    if not stat.S_ISREG(file_stat.st_mode):
+        raise SessionError("会话文件必须是普通文件，不能是链接或目录")
+    mode = file_stat.st_mode & 0o777
     if mode & 0o077:
         os.chmod(filename, 0o600)
 
@@ -236,7 +246,7 @@ def _read_response(response):
 def _retry_delay(error, attempt):
     retry_after = _retry_after_delay(error)
     if retry_after is not None:
-        return min(retry_after, MAX_RETRY_DELAY_SECONDS)
+        return retry_after
     return min(2**attempt + random.uniform(0, 1), MAX_RETRY_DELAY_SECONDS)
 
 
@@ -265,5 +275,10 @@ def _retry_after_delay(error):
 def _read_error_detail(error):
     try:
         return error.read(201).decode("utf-8", errors="replace")[:200]
-    except (AttributeError, UnicodeError):
+    except (AttributeError, OSError, UnicodeError, http.client.HTTPException):
         return ""
+    finally:
+        try:
+            error.close()
+        except (AttributeError, OSError):
+            pass

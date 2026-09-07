@@ -1,4 +1,5 @@
 import hashlib
+import http.client
 import io
 import json
 import os
@@ -10,7 +11,7 @@ from unittest import mock
 
 from maoguai.client import ApiClient
 from maoguai.config import Settings
-from maoguai.errors import RequestError, ResponseFormatError
+from maoguai.errors import RequestError, ResponseFormatError, SessionError
 
 
 class FakeResponse:
@@ -45,8 +46,9 @@ class FlakyOpener:
 
 
 class ThrottledOpener:
-    def __init__(self):
+    def __init__(self, retry_after="4"):
         self.attempts = 0
+        self.retry_after = retry_after
 
     def open(self, request, timeout):
         self.attempts += 1
@@ -55,7 +57,7 @@ class ThrottledOpener:
                 request.full_url,
                 429,
                 "throttled",
-                {"Retry-After": "4"},
+                {"Retry-After": self.retry_after},
                 io.BytesIO(b"too many requests"),
             )
         return FakeResponse(b'{"code":0}')
@@ -67,6 +69,39 @@ class StaticOpener:
 
     def open(self, request, timeout):
         return FakeResponse(self.body)
+
+
+class UnreadableErrorStream:
+    def read(self, size=-1):
+        raise OSError("connection closed")
+
+    def close(self):
+        pass
+
+
+class UnreadableErrorOpener:
+    def open(self, request, timeout):
+        raise urllib.error.HTTPError(
+            request.full_url,
+            400,
+            "bad request",
+            {},
+            UnreadableErrorStream(),
+        )
+
+
+class IncompleteResponse(FakeResponse):
+    def read(self, size=-1):
+        raise http.client.IncompleteRead(b"", 20)
+
+
+class IncompleteReadOpener:
+    def __init__(self):
+        self.attempts = 0
+
+    def open(self, request, timeout):
+        self.attempts += 1
+        return IncompleteResponse(b"")
 
 
 class ClientTest(unittest.TestCase):
@@ -148,6 +183,16 @@ class ClientTest(unittest.TestCase):
             self.assertEqual(client.request("/sign/signed"), {"code": 0})
         self.assertEqual(delays, [4])
 
+    def test_does_not_shorten_the_server_retry_after_delay(self):
+        delays = []
+        client = ApiClient(
+            self.client.settings, opener=ThrottledOpener(retry_after="300")
+        )
+
+        with mock.patch("time.sleep", delays.append):
+            self.assertEqual(client.request("/sign/signed"), {"code": 0})
+        self.assertEqual(delays, [300])
+
     def test_rejects_response_larger_than_the_safety_limit(self):
         client = ApiClient(
             self.client.settings,
@@ -156,6 +201,21 @@ class ClientTest(unittest.TestCase):
 
         with self.assertRaisesRegex(ResponseFormatError, "响应体过大"):
             client.request("/sign/signed")
+
+    def test_converts_unreadable_http_error_body_to_request_error(self):
+        client = ApiClient(self.client.settings, opener=UnreadableErrorOpener())
+
+        with self.assertRaises(RequestError):
+            client.request("/sign", method="POST")
+
+    def test_retries_an_incomplete_idempotent_response_as_a_request_error(self):
+        opener = IncompleteReadOpener()
+        client = ApiClient(self.client.settings, opener=opener)
+
+        with mock.patch("time.sleep"):
+            with self.assertRaises(RequestError):
+                client.request("/sign/signed")
+        self.assertEqual(opener.attempts, 3)
 
     def test_session_is_persisted_with_restricted_permissions(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -208,6 +268,22 @@ class ClientTest(unittest.TestCase):
             loaded = ApiClient(settings, opener=object())
             self.assertTrue(loaded.load_session())
             self.assertEqual(os.stat(path).st_mode & 0o777, 0o600)
+
+    def test_load_session_refuses_symbolic_links(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = os.path.join(directory, "source.cookies")
+            link = os.path.join(directory, "session.cookies")
+            settings = Settings(account="user", password="secret", session_file=source)
+            client = ApiClient(settings, opener=object())
+            client.set_token("persisted")
+            client.save_session()
+            os.symlink(source, link)
+
+            linked_settings = Settings(
+                account="user", password="secret", session_file=link
+            )
+            with self.assertRaises(SessionError):
+                ApiClient(linked_settings, opener=object()).load_session()
 
 
 if __name__ == "__main__":

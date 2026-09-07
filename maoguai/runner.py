@@ -85,7 +85,7 @@ class SignInRunner:
                 sign_response = ApiResponse.from_payload(
                     self.client.request("/sign", method="POST")
                 )
-            except RequestError:
+            except (RequestError, ResponseFormatError):
                 if self._sign_in_was_confirmed():
                     self._save_session()
                     return RunResult(
