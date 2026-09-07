@@ -1,81 +1,83 @@
-# 毛怪俱乐部自动签到
+# Maoguai Club Automatic Check-in
 
-用于青龙面板、本地定时任务、Docker 或 GitHub Actions 的 `2550505.com` 自动登录签到脚本。
+English | [简体中文](README.zh-CN.md)
 
-> 使用本项目需要自行承担账号风险。请勿提交账号、密码、Cookie 或 Token，也不要将本项目用于违反目标站点规则的用途。
+An automatic login and daily check-in script for `2550505.com`, suitable for QingLong, local scheduled tasks, Docker, and GitHub Actions.
 
-## 功能
+> You are responsible for the risk to your account when using this project. Do not commit your account, password, cookies, or tokens, and do not use this project in violation of the target site's rules.
 
-- 自动登录并使用会话 Cookie
-- 持久化 Cookie 优先复用登录，会话失效时自动回退密码登录
-- 查询当天签到状态，已签到时跳过重复操作
-- 未签到时自动执行签到并输出经验、贡献
-- 兼容登录接口通过 Cookie 或 JSON 返回 Token 的情况
-- 对状态查询等幂等请求进行有限重试，避免重复执行签到
-- 无第三方 Python 依赖
+## Features
 
-## 快速开始
+- Automatically logs in and uses session cookies
+- Reuses persisted cookies first, then falls back to password login when the session expires
+- Checks today's status and skips duplicate check-ins
+- Performs the check-in when needed and reports experience and contribution earned
+- Supports login APIs that return a token through either a cookie or JSON
+- Retries idempotent requests such as status checks a limited number of times, without repeating a check-in
+- Uses no third-party Python dependencies
 
-需要 Python 3.8 或更高版本：
+## Quick Start
+
+Python 3.8 or later is required:
 
 ```bash
-export MAOGUAI_ACCOUNT="你的账号或 UID"
-export MAOGUAI_PASSWORD="你的密码"
+export MAOGUAI_ACCOUNT="your account or UID"
+export MAOGUAI_PASSWORD="your password"
 python3 main.py
 ```
 
-本地测试可以复制 `.env.example` 作为变量清单，但脚本不会自动读取 `.env` 文件。
+For local testing, you can copy `.env.example` as an environment-variable checklist. The script does not load `.env` files automatically.
 
-## 部署方式
+## Deployment Options
 
-| 方式 | 适合场景 | 说明 |
+| Method | Best for | Notes |
 | --- | --- | --- |
-| [本地直接运行和 Crontab](docs/local.md) | 有 Linux、macOS 或服务器 | 依赖最少，适合长期运行 |
-| [Windows](docs/windows.md) | Windows 10/11 | 可直接运行，定时任务使用任务计划程序 |
-| [Docker](docs/docker.md) | 已使用容器 | 环境隔离，容器单次执行后退出 |
-| [Docker Compose](docs/docker.md) | Docker 用户 | 统一管理镜像和环境变量 |
-| [青龙面板](docs/qinglong.md) | 定时任务面板 | 适合已有青龙环境的用户 |
-| [GitHub Actions](docs/github-actions.md) | 不想维护服务器 | 配置 Secrets 后按 UTC 定时运行 |
+| [Run locally and with Crontab](docs/local.md) | Linux, macOS, or a server | Minimal dependencies and suitable for long-term use |
+| [Windows](docs/windows.md) | Windows 10/11 | Runs directly; use Task Scheduler for scheduled execution |
+| [Docker](docs/docker.md) | Existing container users | Isolated environment; the container exits after one run |
+| [Docker Compose](docs/docker.md) | Docker users | Manage the image and environment variables together |
+| [QingLong](docs/qinglong.md) | Scheduled-task panel users | Suitable for an existing QingLong installation |
+| [GitHub Actions](docs/github-actions.md) | Users who do not want to maintain a server | Runs on a UTC schedule after configuring Secrets |
 
-所有方式都使用同一个 `main.py` 入口和同一组环境变量。
+All options use the same `main.py` entry point and environment variables. The linked deployment guides are currently in Simplified Chinese.
 
 ## Windows
 
-核心脚本支持 Windows 10/11。安装 Python 3.8 或更高版本时，请勾选“Add Python to PATH”。项目不依赖第三方 Python 包。
+The core script supports Windows 10/11. When installing Python 3.8 or later, select "Add Python to PATH." The project has no third-party Python dependencies.
 
-PowerShell 中直接运行：
+Run directly in PowerShell:
 
 ```powershell
-$env:MAOGUAI_ACCOUNT = "你的账号或 UID"
-$env:MAOGUAI_PASSWORD = "你的密码"
+$env:MAOGUAI_ACCOUNT = "your account or UID"
+$env:MAOGUAI_PASSWORD = "your password"
 py .\main.py
 ```
 
-传统命令提示符（CMD）中直接运行：
+Run directly in Command Prompt (CMD):
 
 ```bat
-set MAOGUAI_ACCOUNT=你的账号或UID
-set MAOGUAI_PASSWORD=你的密码
+set MAOGUAI_ACCOUNT=your-account-or-UID
+set MAOGUAI_PASSWORD=your-password
 py main.py
 ```
 
-上面的变量仅在当前终端窗口有效。Windows 定时执行请使用“任务计划程序”；详细字段和安全配置见 [Windows 部署文档](docs/windows.md)。Unix 的 `scripts/run.sh`、`scripts/run-cron.sh` 不适用于 Windows。
+These variables are available only in the current terminal session. Use Task Scheduler for scheduled execution on Windows; see the [Windows deployment guide](docs/windows.md) for fields and security settings. The Unix scripts `scripts/run.sh` and `scripts/run-cron.sh` do not work on Windows.
 
-## 青龙面板
+## QingLong
 
-1. 将仓库拉取到青龙脚本目录。
-2. 添加环境变量 `MAOGUAI_ACCOUNT` 和 `MAOGUAI_PASSWORD`。
-3. 新建任务，命令填写：
+1. Clone the repository into the QingLong scripts directory.
+2. Add the `MAOGUAI_ACCOUNT` and `MAOGUAI_PASSWORD` environment variables.
+3. Create a task with this command:
 
    ```bash
-   python3 /你的路径/2550/main.py
+   python3 /your/path/2550/main.py
    ```
 
-4. 若青龙时区为 `Asia/Shanghai`，建议每天 `08:05` 执行，Cron 为 `5 8 * * *`。
+4. When QingLong uses the `Asia/Shanghai` time zone, run it daily at `08:05` with the cron expression `5 8 * * *`.
 
-详细说明见 [青龙部署文档](docs/qinglong.md)。
+See the [QingLong deployment guide](docs/qinglong.md) for details.
 
-## Docker 快速开始
+## Docker Quick Start
 
 ```bash
 cp .env.example .env
@@ -84,66 +86,66 @@ docker compose build
 docker compose run --rm maoguai-sign
 ```
 
-详细说明见 [Docker 部署文档](docs/docker.md)。
+See the [Docker deployment guide](docs/docker.md) for details.
 
-## GitHub Actions 快速开始
+## GitHub Actions Quick Start
 
-在仓库 Secrets 中添加 `MAOGUAI_ACCOUNT` 和 `MAOGUAI_PASSWORD`，工作流会每天北京时间 `08:05` 执行，也支持手动触发。
+Add `MAOGUAI_ACCOUNT` and `MAOGUAI_PASSWORD` to the repository Secrets. The workflow runs daily at `08:05` China Standard Time and can also be triggered manually.
 
-详细说明见 [GitHub Actions 部署文档](docs/github-actions.md)。
+See the [GitHub Actions deployment guide](docs/github-actions.md) for details.
 
-## 配置项
+## Configuration
 
-| 环境变量 | 必填 | 默认值 | 说明 |
+| Environment variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `MAOGUAI_ACCOUNT` | 是 | 无 | 账号或 UID |
-| `MAOGUAI_PASSWORD` | 是 | 无 | 账号密码 |
-| `MAOGUAI_BASE_URL` | 否 | `https://2550505.com` | 接口根地址 |
-| `MAOGUAI_CLIENT_VERSION` | 否 | `0c1c05` | 客户端版本标识 |
-| `MAOGUAI_SESSION_FILE` | 否 | `data/session.cookies` | 持久化登录 Cookie 文件路径 |
-| `MAOGUAI_TIMEOUT` | 否 | `30` | 单次请求超时时间，单位秒 |
-| `MAOGUAI_RETRIES` | 否 | `2` | 幂等请求的临时网络错误最大重试次数 |
+| `MAOGUAI_ACCOUNT` | Yes | None | Account or UID |
+| `MAOGUAI_PASSWORD` | Yes | None | Account password |
+| `MAOGUAI_BASE_URL` | No | `https://2550505.com` | API base URL |
+| `MAOGUAI_CLIENT_VERSION` | No | `0c1c05` | Client-version identifier |
+| `MAOGUAI_SESSION_FILE` | No | `data/session.cookies` | Path to the persisted login-cookie file |
+| `MAOGUAI_TIMEOUT` | No | `30` | Timeout for each request, in seconds |
+| `MAOGUAI_RETRIES` | No | `2` | Maximum temporary-network-error retries for idempotent requests |
 
-## 退出码
+## Exit Codes
 
-| 退出码 | 含义 |
+| Exit code | Meaning |
 | --- | --- |
-| `0` | 签到成功或今天已经签到 |
-| `1` | 配置、登录、接口、网络或签到失败 |
+| `0` | The check-in succeeded or was already completed today |
+| `1` | Configuration, login, API, network, or check-in failure |
 
-## 项目结构
+## Project Structure
 
 ```text
-main.py       # 青龙兼容入口
+main.py       # QingLong-compatible entry point
 maoguai/
-  config.py   # 环境变量读取和配置校验
-  client.py   # HTTP、Cookie、请求签名、重试
-  models.py   # API 响应模型和结构校验
-  runner.py   # 登录、查询、签到流程
-  errors.py   # 项目级异常
-tests/        # 不访问真实服务的单元测试
-docs/         # 部署和排错文档
+  config.py   # Environment-variable loading and validation
+  client.py   # HTTP, cookies, request signing, and retries
+  models.py   # API response models and structural validation
+  runner.py   # Login, status-check, and check-in flow
+  errors.py   # Project-level exceptions
+tests/        # Unit tests that do not access the live service
+docs/         # Deployment and troubleshooting guides
 ```
 
-模块依赖方向是：`main.py -> runner.py -> client.py/models.py`。业务流程不直接读取环境变量，网络客户端也不负责决定签到业务，后续新增任务时可以在 `maoguai/tasks/` 下继续拆分。
+Dependencies flow as `main.py -> runner.py -> client.py/models.py`. Business flows do not read environment variables directly, and the network client does not decide check-in behavior. Future tasks can be split into `maoguai/tasks/`.
 
-## 开发与测试
+## Development and Testing
 
-项目只使用 Python 标准库，执行：
+The project uses only the Python standard library. Run:
 
 ```bash
 python3 -m unittest discover -v
 ```
 
-测试使用模拟客户端和本地构造的响应，不会登录、签到或访问真实服务。
+Tests use mock clients and locally constructed responses. They do not log in, check in, or access the live service.
 
-## 常见问题
+## Troubleshooting
 
-- **提示缺少环境变量**：确认变量名称完全是 `MAOGUAI_ACCOUNT`、`MAOGUAI_PASSWORD`，并检查任务运行环境是否能读取到它们。
-- **登录成功但没有 Token**：脚本会拒绝继续签到，避免在未认证状态下误调用接口；请检查接口返回、Cookie 保存和网络环境。
-- **接口返回格式错误**：通常表示目标站点接口发生变化，需要根据实际响应更新 `maoguai/models.py`。
-- **频繁网络失败**：可适当增加 `MAOGUAI_TIMEOUT` 或 `MAOGUAI_RETRIES`，但不要设置过大的重试次数。
+- **Missing environment variables**: Ensure the names are exactly `MAOGUAI_ACCOUNT` and `MAOGUAI_PASSWORD`, and verify that the task environment can read them.
+- **Login succeeds but no token is available**: The script refuses to continue, preventing calls in an unauthenticated state. Check the API response, saved cookies, and network environment.
+- **Invalid API response format**: The target site's API may have changed. Update `maoguai/models.py` for the actual response.
+- **Frequent network failures**: You can increase `MAOGUAI_TIMEOUT` or `MAOGUAI_RETRIES`, but avoid an excessively large retry count.
 
-## 许可证
+## License
 
-本项目采用 [MIT License](LICENSE) 开源。使用本项目仍需自行承担账号风险，并遵守目标站点的相关规则。
+This project is licensed under the [MIT License](LICENSE). You remain responsible for account risk and complying with the target site's rules.
