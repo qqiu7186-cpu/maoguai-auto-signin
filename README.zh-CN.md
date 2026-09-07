@@ -41,6 +41,16 @@ python3 main.py
 
 所有方式都使用同一个 `main.py` 入口和同一组环境变量。
 
+## 文档索引
+
+- [README（English）](README.md)
+- [本地部署与 Crontab](docs/local.md)
+- [Windows 部署](docs/windows.md)
+- [Docker 与 Docker Compose 部署](docs/docker.md)
+- [青龙部署](docs/qinglong.md)
+- [GitHub Actions 部署](docs/github-actions.md)
+- [排错指南](docs/troubleshooting.md)
+
 ## Windows
 
 核心脚本支持 Windows 10/11。安装 Python 3.8 或更高版本时，请勾选“Add Python to PATH”。项目不依赖第三方 Python 包。

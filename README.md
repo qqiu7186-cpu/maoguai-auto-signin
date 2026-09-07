@@ -41,6 +41,16 @@ For local testing, you can copy `.env.example` as an environment-variable checkl
 
 All options use the same `main.py` entry point and environment variables. The linked deployment guides are currently in Simplified Chinese.
 
+## Documentation Index
+
+- [README (简体中文)](README.zh-CN.md)
+- [Local and Crontab Deployment](docs/local.md)
+- [Windows Deployment](docs/windows.md)
+- [Docker and Docker Compose Deployment](docs/docker.md)
+- [QingLong Deployment](docs/qinglong.md)
+- [GitHub Actions Deployment](docs/github-actions.md)
+- [Troubleshooting Guide](docs/troubleshooting.md)
+
 ## Windows
 
 The core script supports Windows 10/11. When installing Python 3.8 or later, select "Add Python to PATH." The project has no third-party Python dependencies.

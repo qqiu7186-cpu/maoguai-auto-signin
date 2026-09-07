@@ -1,5 +1,7 @@
 # 排错指南
 
+相关文档：[项目主页](../README.zh-CN.md) · [本地部署](local.md) · [Docker 部署](docker.md) · [GitHub Actions 部署](github-actions.md)
+
 ## 先确认运行环境
 
 ```bash

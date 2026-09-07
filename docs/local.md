@@ -1,5 +1,7 @@
 # 本地部署
 
+相关文档：[项目主页](../README.zh-CN.md) · [Docker 部署](docker.md) · [排错指南](troubleshooting.md)
+
 ## 直接运行
 
 项目只依赖 Python 标准库，不需要安装第三方包：
@@ -57,3 +59,5 @@ chmod 600 .env
 ```bash
 python3 -m unittest discover -v
 ```
+
+遇到登录、接口或网络异常时，可继续查看 [排错指南](troubleshooting.md)。

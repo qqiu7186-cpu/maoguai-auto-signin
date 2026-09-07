@@ -1,5 +1,7 @@
 # Docker 部署
 
+相关文档：[项目主页](../README.zh-CN.md) · [本地部署](local.md) · [排错指南](troubleshooting.md)
+
 容器设计为“一次执行后退出”，定时任务交给宿主机、Docker Compose 外部调度器或平台完成。
 
 ## Docker 单次运行
@@ -78,3 +80,5 @@ docker run --rm --env-file .env ghcr.io/你的用户名/maoguai-sign:latest
 ```
 
 不要把账号密码写进 Dockerfile、镜像层或 Compose 文件。
+
+如果容器内签到失败，请结合 [排错指南](troubleshooting.md) 逐项检查配置和网络。

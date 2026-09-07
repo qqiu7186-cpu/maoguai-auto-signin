@@ -1,5 +1,7 @@
 # GitHub Actions 部署
 
+相关文档：[项目主页](../README.zh-CN.md) · [本地部署](local.md) · [排错指南](troubleshooting.md)
+
 仓库已经提供定时工作流 `.github/workflows/sign.yml`，默认每天 UTC `00:05` 执行，对应中国标准时间 `08:05`。
 
 ## 配置 Secrets
@@ -24,3 +26,4 @@ GitHub-hosted runner 每次运行都是临时环境，不建议在 Actions 中�
 - 定时任务只在默认分支的最新提交上运行。
 - GitHub Actions 可能因仓库长期无活动而延迟或停用定时任务，重要任务建议使用青龙或自己的服务器。
 - 使用 GitHub-hosted runner 会从 GitHub 网络访问目标站点，请根据目标站点规则和账号风险自行决定。
+- 如需定位失败原因，可在 Actions 运行日志中按 [排错指南](troubleshooting.md) 的配置和接口步骤排查。

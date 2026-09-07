@@ -1,5 +1,7 @@
 # Windows 部署
 
+相关文档：[项目主页](../README.zh-CN.md) · [Docker 部署](docker.md) · [排错指南](troubleshooting.md)
+
 核心脚本支持 Windows 10/11，并且只需要 Python 3.8 或更高版本。安装 Python 时建议勾选“Add Python to PATH”。
 
 ## 直接运行
@@ -42,3 +44,4 @@ py main.py
 - `scripts/run.sh`、`scripts/run-cron.sh` 是 Unix shell 脚本，不能在 Windows 中直接运行。
 - 可以使用 Docker Desktop 按 [Docker 部署文档](docker.md) 运行容器。
 - 不要把真实账号或密码写入 `.env.example`，也不要提交 `.env` 到仓库。
+- 出现登录失败或接口响应异常时，可参考 [排错指南](troubleshooting.md)。
