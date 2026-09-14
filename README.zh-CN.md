@@ -1,6 +1,8 @@
-# 毛怪俱乐部自动签到
+# 毛怪俱乐部自动签到（脚本版）
 
-[English](README.md) | 简体中文
+[中文主页](README.md) | [English](README.en.md) | 简体中文
+
+> 需要 Android/iOS 手机客户端？请先阅读仓库主页的[签到助手移动端说明](README.md)。
 
 用于青龙面板、本地定时任务、Docker 或 GitHub Actions 的 `2550505.com` 自动登录签到脚本。
 

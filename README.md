@@ -1,155 +1,58 @@
-# Maoguai Club Automatic Check-in
+# 签到助手
 
-English | [简体中文](README.zh-CN.md)
+简体中文 | [English](README.en.md)
 
-An automatic login and daily check-in script for `2550505.com`, suitable for QingLong, local scheduled tasks, Docker, and GitHub Actions.
+签到助手是面向 `2550505.com` 的本机签到工具。本仓库同时提供手机 App 与适用于青龙、本地定时任务、Docker 和 GitHub Actions 的 Python 脚本。
 
-> You are responsible for the risk to your account when using this project. Do not commit your account, password, cookies, or tokens, and do not use this project in violation of the target site's rules.
+> 使用本项目需要自行承担账号风险。请勿提交账号、密码、Cookie 或 Token，也不要将本项目用于违反目标站点规则的用途。
 
-## Features
+## 签到助手 v1.0.0
 
-- Automatically logs in and uses session cookies
-- Reuses persisted cookies first, then falls back to password login when the session expires
-- Checks today's status and skips duplicate check-ins
-- Performs the check-in when needed and reports experience and contribution earned
-- Supports login APIs that return a token through either a cookie or JSON
-- Retries idempotent requests such as status checks a limited number of times, without repeating a check-in
-- Uses no third-party Python dependencies
+v1.0.0 提供本机运行的移动端签到体验：账号信息保存在设备本地，可设置每日计划、手动执行签到并查看结果记录。
 
-## Quick Start
+### 新增内容
 
-Python 3.8 or later is required:
+- 单账号登录与本地凭据管理；设置页面会对账号进行脱敏显示。
+- 对接 `2550505.com` 的登录、签到状态查询与执行签到流程。
+- 每日计划支持设置时间范围，并在范围内生成当天的随机执行时间。
+- 支持手动签到；服务端确认当天已经签到时，会标记为成功并记录“已签到，已跳过”。
+- 签到记录提供最近记录、详情页与按日期查看的历史数据。
+- 签到成功、已跳过和失败都会记录具体结果；可开启本地通知提醒。
+- iOS 提供“签到助手签到”快捷指令入口，可在快捷指令自动化中设置执行时间。
+- 登录失效、服务端返回异常或响应格式变化时，记录详情会显示具体原因，便于排查。
+
+## 移动端安装
+
+请从 [Releases](https://github.com/qqiu7186-cpu/maoguai-auto-signin/releases) 下载对应资产。
+
+- **iOS**：IPA 为未签名包，需要使用自己的证书重新签名后安装。
+- **Android**：发布页提供 arm64 APK 后，可直接安装测试；该测试包使用调试证书签名，不适用于应用商店发布。
+- 签到功能依赖 `2550505.com` 服务可用性。请仅使用自己的账号，并遵守目标站点规则。
+
+## iOS 快捷指令
+
+在“快捷指令”中添加“签到助手签到”操作，再通过自动化设置每天的执行时间。该入口用于在系统允许的后台执行条件下触发签到；iOS 的实际后台调度时机由系统决定，不能保证精确到秒。
+
+## Python 脚本版
+
+Python 脚本版适用于服务器、青龙面板和 GitHub Actions 等环境，支持 Cookie 复用、重复签到跳过及幂等请求重试。完整中文使用说明见 [脚本版文档](README.zh-CN.md)，英文说明见 [README.en.md](README.en.md)。
 
 ```bash
-export MAOGUAI_ACCOUNT="your account or UID"
-export MAOGUAI_PASSWORD="your password"
+export MAOGUAI_ACCOUNT="你的账号或 UID"
+export MAOGUAI_PASSWORD="你的密码"
 python3 main.py
 ```
 
-For local testing, you can copy `.env.example` as an environment-variable checklist. The script does not load `.env` files automatically.
-
-## Deployment Options
-
-| Method | Best for | Notes |
-| --- | --- | --- |
-| [Run locally and with Crontab](docs/local.md) | Linux, macOS, or a server | Minimal dependencies and suitable for long-term use |
-| [Windows](docs/windows.md) | Windows 10/11 | Runs directly; use Task Scheduler for scheduled execution |
-| [Docker](docs/docker.md) | Existing container users | Isolated environment; the container exits after one run |
-| [Docker Compose](docs/docker.md) | Docker users | Manage the image and environment variables together |
-| [QingLong](docs/qinglong.md) | Scheduled-task panel users | Suitable for an existing QingLong installation |
-| [GitHub Actions](docs/github-actions.md) | Users who do not want to maintain a server | Runs on a UTC schedule after configuring Secrets |
-
-All options use the same `main.py` entry point and environment variables. The linked deployment guides are currently in Simplified Chinese.
-
-## Windows
-
-The core script supports Windows 10/11. When installing Python 3.8 or later, select "Add Python to PATH." The project has no third-party Python dependencies.
-
-Run directly in PowerShell:
-
-```powershell
-$env:MAOGUAI_ACCOUNT = "your account or UID"
-$env:MAOGUAI_PASSWORD = "your password"
-py .\main.py
-```
-
-Run directly in Command Prompt (CMD):
-
-```bat
-set MAOGUAI_ACCOUNT=your-account-or-UID
-set MAOGUAI_PASSWORD=your-password
-py main.py
-```
-
-These variables are available only in the current terminal session. Use Task Scheduler for scheduled execution on Windows; see the [Windows deployment guide](docs/windows.md) for fields and security settings. The Unix scripts `scripts/run.sh` and `scripts/run-cron.sh` do not work on Windows.
-
-## QingLong
-
-1. Clone the repository into the QingLong scripts directory.
-2. Add the `MAOGUAI_ACCOUNT` and `MAOGUAI_PASSWORD` environment variables.
-3. Create a task with this command:
-
-   ```bash
-   python3 /your/path/2550/main.py
-   ```
-
-4. When QingLong uses the `Asia/Shanghai` time zone, run it daily at `08:05` with the cron expression `5 8 * * *`.
-
-See the [QingLong deployment guide](docs/qinglong.md) for details.
-
-## Docker Quick Start
-
-```bash
-cp .env.example .env
-chmod 600 .env
-mkdir -p data
-chmod 700 data
-printf 'MAOGUAI_UID=%s\nMAOGUAI_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
-docker compose build
-docker compose run --rm maoguai-sign
-```
-
-See the [Docker deployment guide](docs/docker.md) for details.
-
-## GitHub Actions Quick Start
-
-Add `MAOGUAI_ACCOUNT` and `MAOGUAI_PASSWORD` to the repository Secrets. The workflow runs daily at `08:05` China Standard Time and can also be triggered manually.
-
-See the [GitHub Actions deployment guide](docs/github-actions.md) for details.
-
-## Configuration
-
-| Environment variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `MAOGUAI_ACCOUNT` | Yes | None | Account or UID |
-| `MAOGUAI_PASSWORD` | Yes | None | Account password |
-| `MAOGUAI_BASE_URL` | No | `https://2550505.com` | HTTPS API root; the target host is required by default |
-| `MAOGUAI_ALLOW_CUSTOM_BASE_URL` | No | `false` | Set to `true` only for a trusted HTTPS test endpoint |
-| `MAOGUAI_CLIENT_VERSION` | No | `0c1c05` | Client-version identifier |
-| `MAOGUAI_SESSION_FILE` | No | `data/session.cookies` | Path to the persisted login-cookie file |
-| `MAOGUAI_TIMEOUT` | No | `30` | Timeout for each request, in seconds |
-| `MAOGUAI_RETRIES` | No | `2` | Idempotent-request retries, from `0` to `5`; waits with backoff and honors `Retry-After` |
-
-## Exit Codes
-
-| Exit code | Meaning |
-| --- | --- |
-| `0` | The check-in succeeded or was already completed today |
-| `1` | Configuration, login, API, network, or check-in failure |
-
-## Project Structure
+## 项目结构
 
 ```text
-main.py       # QingLong-compatible entry point
-maoguai/
-  config.py   # Environment-variable loading and validation
-  client.py   # HTTP, cookies, request signing, and retries
-  models.py   # API response models and structural validation
-  runner.py   # Login, status-check, and check-in flow
-  errors.py   # Project-level exceptions
-tests/        # Unit tests that do not access the live service
-docs/         # Deployment and troubleshooting guides
+mobile/       # Flutter 手机客户端（Android / iOS）
+main.py       # Python 脚本入口
+maoguai/      # 登录、状态查询与签到逻辑
+docs/         # 脚本部署与排错文档
+tests/        # Python 单元测试
 ```
 
-Dependencies flow as `main.py -> runner.py -> client.py/models.py`. Business flows do not read environment variables directly, and the network client does not decide check-in behavior. Future tasks can be split into `maoguai/tasks/`.
+## 许可证
 
-## Development and Testing
-
-The project uses only the Python standard library. Run:
-
-```bash
-python3 -m unittest discover -v
-```
-
-Tests use mock clients and locally constructed responses. They do not log in, check in, or access the live service.
-
-## Troubleshooting
-
-- **Missing environment variables**: Ensure the names are exactly `MAOGUAI_ACCOUNT` and `MAOGUAI_PASSWORD`, and verify that the task environment can read them.
-- **Login succeeds but no token is available**: The script refuses to continue, preventing calls in an unauthenticated state. Check the API response, saved cookies, and network environment.
-- **Invalid API response format**: The target site's API may have changed. Update `maoguai/models.py` for the actual response.
-- **Frequent network failures**: You can increase `MAOGUAI_TIMEOUT` or set `MAOGUAI_RETRIES` up to `5`. Retries wait with backoff and honor the server's `Retry-After` response.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE). You remain responsible for account risk and complying with the target site's rules.
+本项目采用 [MIT License](LICENSE) 开源。
