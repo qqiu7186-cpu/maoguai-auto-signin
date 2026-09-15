@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../app_state.dart';
+import '../../background/background_scheduler.dart';
 import '../../domain/sign_in_errors.dart';
 import '../../domain/sign_in_models.dart';
 import '../../ui/scenic_page.dart';
@@ -16,8 +17,65 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends State<SettingsPage>
+    with WidgetsBindingObserver {
   bool _busy = false;
+  BackgroundScheduleStatus? _backgroundScheduleStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      _refreshBackgroundScheduleStatus();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      _refreshBackgroundScheduleStatus();
+    }
+  }
+
+  Future<void> _refreshBackgroundScheduleStatus() async {
+    try {
+      final status = await widget.controller.backgroundScheduleStatus();
+      if (mounted) setState(() => _backgroundScheduleStatus = status);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () =>
+              _backgroundScheduleStatus = BackgroundScheduleStatus.fallbackOnly,
+        );
+      }
+    }
+  }
+
+  Future<void> _openBackgroundScheduleSettings() async {
+    final opened = await widget.controller.openBackgroundScheduleSettings();
+    if (!mounted) return;
+    if (!opened) {
+      _showMessage('无法打开系统闹钟权限设置');
+      return;
+    }
+    await _refreshBackgroundScheduleStatus();
+  }
+
+  String get _backgroundScheduleStatusText =>
+      switch (_backgroundScheduleStatus) {
+        BackgroundScheduleStatus.exact => '已允许准时唤醒',
+        BackgroundScheduleStatus.permissionNeeded => '需要允许“闹钟和提醒”权限',
+        BackgroundScheduleStatus.fallbackOnly => '系统仅能延迟补签',
+        null => '正在检查系统权限…',
+      };
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
@@ -208,6 +266,30 @@ class _SettingsPageState extends State<SettingsPage> {
                 trailing: TextButton(
                   onPressed: disabled ? null : _checkShortcutConnection,
                   child: const Text('检查连接'),
+                ),
+              ),
+            ),
+          ],
+          if (defaultTargetPlatform == TargetPlatform.android) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                key: const ValueKey('exact-alarm-status'),
+                leading: const Icon(Icons.alarm_on_outlined),
+                title: const Text('精确闹钟权限'),
+                subtitle: Text(_backgroundScheduleStatusText),
+                trailing: TextButton(
+                  onPressed: disabled
+                      ? null
+                      : _backgroundScheduleStatus ==
+                            BackgroundScheduleStatus.exact
+                      ? _refreshBackgroundScheduleStatus
+                      : _openBackgroundScheduleSettings,
+                  child: Text(
+                    _backgroundScheduleStatus == BackgroundScheduleStatus.exact
+                        ? '重新检查'
+                        : '去开启',
+                  ),
                 ),
               ),
             ),

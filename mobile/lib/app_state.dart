@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'auth/credential_store.dart';
 import 'auth/session_store.dart';
 import 'background/background_scheduler.dart';
-import 'background/workmanager_scheduler.dart';
+import 'background/production_background_scheduler.dart';
 import 'domain/sign_in_errors.dart';
 import 'domain/sign_in_models.dart';
 import 'notifications/sign_in_notifications.dart';
@@ -50,7 +50,7 @@ class _ProductionDependencies implements AppDependencies {
   @override
   late final SignInExecutor executor;
   @override
-  final WorkmanagerScheduler scheduler = WorkmanagerScheduler();
+  final BackgroundScheduler scheduler = createProductionBackgroundScheduler();
   @override
   late final NotificationService notifications;
   @override
@@ -84,7 +84,10 @@ class _ProductionDependencies implements AppDependencies {
           (await repository.loadSettings()).notificationsEnabled,
     );
     try {
-      await scheduler.initialize();
+      final scheduler = this.scheduler;
+      if (scheduler case final InitializableBackgroundScheduler initializable) {
+        await initializable.initialize();
+      }
     } catch (_) {
       // Foreground login and manual execution also work without background support.
     }
@@ -432,6 +435,30 @@ class SignInAppController extends ChangeNotifier {
     _requireAccount();
     await dependencies.notifications.openNotificationSettings();
   });
+
+  Future<BackgroundScheduleStatus> backgroundScheduleStatus() async {
+    late BackgroundScheduleStatus result;
+    await _ready(() async {
+      final scheduler = dependencies.scheduler;
+      result = switch (scheduler) {
+        final BackgroundSchedulerSettings configurable =>
+          await configurable.status(),
+        _ => BackgroundScheduleStatus.fallbackOnly,
+      };
+    });
+    return result;
+  }
+
+  Future<bool> openBackgroundScheduleSettings() async {
+    var opened = false;
+    await _ready(() async {
+      final scheduler = dependencies.scheduler;
+      if (scheduler case final BackgroundSchedulerSettings configurable) {
+        opened = await configurable.openSystemSettings();
+      }
+    });
+    return opened;
+  }
 
   /// Uses the native client's read-only signed-status endpoint. It never
   /// authenticates or submits a sign-in request.

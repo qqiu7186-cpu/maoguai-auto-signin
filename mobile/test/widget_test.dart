@@ -30,6 +30,31 @@ Future<void> enterLogin(WidgetTester tester) async {
 }
 
 void main() {
+  testWidgets('Android settings exposes exact alarm access status', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final deps = await TestDependencies.authenticated(
+      now: DateTime(2026, 9, 15, 7),
+      settings: testSettings(),
+    );
+    final controller = SignInAppController(deps);
+    await controller.initialize();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: SettingsPage(controller: controller)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('精确闹钟权限'), findsOneWidget);
+    expect(find.text('系统仅能延迟补签'), findsOneWidget);
+    controller.dispose();
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('records overview shows durable monthly and seven-day status', (
     tester,
   ) async {
