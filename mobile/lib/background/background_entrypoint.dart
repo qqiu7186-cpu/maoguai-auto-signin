@@ -12,6 +12,7 @@ import '../signin/sign_in_gateway.dart';
 import '../storage/app_database.dart';
 import '../storage/sign_in_repository.dart';
 import 'background_scheduler.dart';
+import 'production_background_scheduler.dart';
 import 'scheduled_task_runner.dart';
 import 'workmanager_scheduler.dart';
 
@@ -32,7 +33,9 @@ class BackgroundDependencies {
   final SignInGateway? gateway;
   final Future<void> Function()? close;
 
-  static Future<BackgroundDependencies> create() async {
+  static Future<BackgroundDependencies> create({
+    bool completingWorkmanagerTask = false,
+  }) async {
     // Own this connection while sharing the foreground's durable database.
     // A singleInstance handle could close the foreground connection in the
     // plugin's main-engine callback path when this task finishes.
@@ -65,7 +68,9 @@ class BackgroundDependencies {
       ),
       repository: repository,
       planService: plans,
-      scheduler: WorkmanagerScheduler(completingTask: true),
+      scheduler: createProductionBackgroundScheduler(
+        completingWorkmanagerTask: completingWorkmanagerTask,
+      ),
       gateway: gateway,
       close: database.close,
     );
@@ -76,11 +81,15 @@ class BackgroundDependencies {
 Future<bool> executeBackgroundTask({
   Future<BackgroundDependencies> Function()? createDependencies,
   DateTime Function()? clock,
+  bool completingWorkmanagerTask = false,
 }) async {
   BackgroundDependencies? dependencies;
   try {
     dependencies =
-        await (createDependencies ?? BackgroundDependencies.create)();
+        await (createDependencies ??
+            () => BackgroundDependencies.create(
+              completingWorkmanagerTask: completingWorkmanagerTask,
+            ))();
     final readClock = clock ?? DateTime.now;
     final now = readClock();
     final generation = await dependencies.repository.activeGeneration();
@@ -155,6 +164,6 @@ void callbackDispatcher() {
         task != Workmanager.iOSBackgroundTask) {
       return true;
     }
-    return executeBackgroundTask();
+    return executeBackgroundTask(completingWorkmanagerTask: true);
   });
 }

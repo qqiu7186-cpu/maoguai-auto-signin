@@ -15,7 +15,8 @@ abstract interface class WorkmanagerPort {
   });
 }
 
-class WorkmanagerScheduler implements BackgroundScheduler {
+class WorkmanagerScheduler
+    implements BackgroundScheduler, InitializableBackgroundScheduler {
   WorkmanagerScheduler({
     WorkmanagerPort? platform,
     DateTime Function()? clock,
@@ -30,6 +31,7 @@ class WorkmanagerScheduler implements BackgroundScheduler {
   final DateTime Function() _clock;
   final bool _completingTask;
 
+  @override
   Future<void> initialize() => _platform.initialize(callbackDispatcher);
 
   @override
